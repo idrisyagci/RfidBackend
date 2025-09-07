@@ -6,57 +6,33 @@ namespace RfidBackend.Native
     {
         private const string DLL_NAME = "UHFReader86.dll";
 
-        // COM Port Constants
+        //com ports
         public const int COM1 = 1;
         public const int COM2 = 2;
         public const int COM3 = 3;
-        public const int COM4 = 4;
-        public const int COM5 = 5;
-        public const int COM6 = 6;
-        public const int COM7 = 7;
-        public const int COM8 = 8;
-        public const int COM9 = 9;
 
-        // Baud Rate Constants
+        //baud rates
         public const byte BAUD_9600 = 0;
         public const byte BAUD_19200 = 1;
         public const byte BAUD_38400 = 2;
         public const byte BAUD_57600 = 5;
         public const byte BAUD_115200 = 6;
 
-        // Memory Bank Constants
+        //memory banks
         public const byte MASK_MEM_EPC = 0x01;
         public const byte MASK_MEM_TID = 0x02;
         public const byte MASK_MEM_USER = 0x03;
 
-        // Target Constants
+        //targets
         public const byte TARGET_A = 0x00;
         public const byte TARGET_B = 0x01;
 
-        // DLL function imports - SDK dokümantasyonuna göre güncellenmiştir
-        
-        /// <summary>
-        /// Okuyucu ile belirtilen iletişim portu arasında bağlantı kurmak için kullanılır
-        /// C++ Signature: Int OpenComPort(int Port, unsigned char *ComAdr, unsigned char Baud, int* FrmHandle)
-        /// </summary>
-        /// <param name="Port">COM port numarası (COM1-COM9)</param>
-        /// <param name="ComAdr">Okuyucu adresi pointer (0x00-0xFE veya broadcast için 0xFF)</param>
-        /// <param name="Baud">Baud rate ayarı</param>
-        /// <param name="FrmHandle">Handle pointer - başarılı bağlantı sonrası dönen handle</param>
-        /// <returns>Başarılı ise 0, hata durumunda sıfır olmayan değer</returns>
         [DllImport(DLL_NAME, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
         public static extern int OpenComPort(int Port, ref byte ComAdr, byte Baud, ref int FrmHandle);
 
-        /// <summary>
-        /// Okuyucu bağlantısını keser ve port kaynaklarını serbest bırakır
-        /// </summary>
-        /// <returns>Başarılı ise 0, hata durumunda sıfır olmayan değer</returns>
         [DllImport(DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
         public static extern int CloseComPort();
 
-        /// <summary>
-        /// Okuma alanındaki etiketleri tespit eder ve EPC değerlerini alır
-        /// </summary>
         [DllImport(DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
         public static extern int Inventory_G2(
             ref byte ComAdr,
@@ -80,9 +56,6 @@ namespace RfidBackend.Native
             ref int CardNum,
             int FrmHandle);
 
-        /// <summary>
-        /// Buffer'dan veri almak için kullanılır
-        /// </summary>
         [DllImport(DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
         public static extern int ReadBuffer_G2(
             ref byte ComAdr,
@@ -91,22 +64,11 @@ namespace RfidBackend.Native
             byte[] pEPCList,
             int FrmHandle);
 
-        /// <summary>
-        /// Buffer'daki etiket verilerini temizler
-        /// </summary>
         [DllImport(DLL_NAME, CallingConvention = CallingConvention.Cdecl)]
         public static extern int ClearBuffer_G2(ref byte ComAdr, int FrmHandle);
 
-        // Yardımcı metodlar ve veri parsers
         public static class Helpers
         {
-            /// <summary>
-            /// EPC buffer verilerini parse eder
-            /// </summary>
-            /// <param name="buffer">Ham EPC buffer verisi</param>
-            /// <param name="totalLength">Toplam veri uzunluğu</param>
-            /// <param name="cardNum">Kart sayısı</param>
-            /// <returns>Parse edilmiş EPC verileri</returns>
             public static List<ParsedEpcData> ParseEpcBuffer(byte[] buffer, int totalLength, int cardNum)
             {
                 var result = new List<ParsedEpcData>();
@@ -145,17 +107,11 @@ namespace RfidBackend.Native
                 return result;
             }
 
-            /// <summary>
-            /// Byte array'i hex string'e çevirir
-            /// </summary>
             public static string ByteArrayToHex(byte[] bytes)
             {
                 return BitConverter.ToString(bytes).Replace("-", "");
             }
 
-            /// <summary>
-            /// Hex string'i byte array'e çevirir
-            /// </summary>
             public static byte[] HexToByteArray(string hex)
             {
                 return Enumerable.Range(0, hex.Length)
@@ -165,9 +121,6 @@ namespace RfidBackend.Native
             }
         }
 
-        /// <summary>
-        /// Parse edilmiş EPC verisi için model
-        /// </summary>
         public class ParsedEpcData
         {
             public byte Antenna { get; set; }
@@ -204,9 +157,6 @@ namespace RfidBackend.Native
                 return _random.Next(-80, -30);
             }
 
-            /// <summary>
-            /// Simülasyon için örnek EPC buffer verisi oluşturur
-            /// </summary>
             public static byte[] GenerateSimulatedEpcBuffer(int tagCount = 1)
             {
                 var buffer = new List<byte>();
@@ -243,9 +193,6 @@ namespace RfidBackend.Native
                 return buffer.ToArray();
             }
 
-            /// <summary>
-            /// Test amaçlı COM port bağlantısı simüle eder
-            /// </summary>
             public static int SimulateOpenComPort(int port, ref byte comAdr, byte baud, ref int frmHandle)
             {
                 // Simülasyon için rastgele handle üret

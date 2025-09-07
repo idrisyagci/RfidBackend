@@ -13,12 +13,10 @@ namespace RfidBackend.Services
         
         private Timer? _simulationTimer;
         private readonly List<RfidTag> _readTags = new();
-        private int _thresholdValue = 10;
         private bool _isReading = false;
         private int _readerHandle = -1;
 
         public event EventHandler<RfidTag>? TagRead;
-        public event EventHandler<int>? ThresholdReached;
 
         public bool IsReading => _isReading;
 
@@ -35,8 +33,7 @@ namespace RfidBackend.Services
 
             try
             {
-                // Gerçek RFID cihaz bağlantısı
-                byte comAddr = 0xFF; // Broadcast address to find reader
+                byte comAddr = 0xFF;
                 int result = RfidNativeWrapper.OpenComPort(
                     RfidNativeWrapper.COM1, 
                     ref comAddr, 
@@ -46,7 +43,7 @@ namespace RfidBackend.Services
                 if (result != 0)
                 {
                     _logger.LogWarning($"Failed to open COM port, using simulation mode. Error code: {result}");
-                    // Simülasyon moduna geç
+                    //smülasyon moduna geç
                     result = RfidNativeWrapper.Simulator.SimulateOpenComPort(
                         RfidNativeWrapper.COM1, 
                         ref comAddr, 
@@ -56,7 +53,7 @@ namespace RfidBackend.Services
 
                 if (result == 0)
                 {
-                    // Buffer'ı temizle
+                    //Bufferı temizle
                     RfidNativeWrapper.ClearBuffer_G2(ref comAddr, _readerHandle);
                     
                     // Continuous reading için timer başlat
@@ -118,34 +115,16 @@ namespace RfidBackend.Services
             }
         }
 
-        public Task<TagCounterModel> GetTagCounterAsync()
-        {
-            var result = new TagCounterModel
-            {
-                CurrentCount = _readTags.Count,
-                ThresholdValue = _thresholdValue,
-                ThresholdReached = _readTags.Count >= _thresholdValue,
-                Tags = _readTags.ToList()
-            };
-            return Task.FromResult(result);
-        }
-
-        public async Task SetThresholdAsync(int threshold)
-        {
-            _thresholdValue = threshold;
-            await _hubContext.Clients.All.SendAsync("ThresholdChanged", threshold);
-        }
-
         private async void ReadTagsFromDevice(object? state)
         {
             if (!_isReading || _readerHandle == -1) return;
 
             try
             {
-                byte comAddr = 0x01; // Varsayılan okuyucu adresi
+                byte comAddr = 0x01;
                 int totalLength = 0;
                 int cardNum = 0;
-                byte[] buffer = new byte[4096]; // 4KB buffer
+                byte[] buffer = new byte[4096];
 
                 // Buffer'dan veri oku
                 int result = RfidNativeWrapper.ReadBuffer_G2(
@@ -183,16 +162,6 @@ namespace RfidBackend.Services
                             TagRead?.Invoke(this, newTag);
 
                             _logger.LogInformation($"New tag read: {newTag.TagId}, RSSI: {newTag.Rssi}, Total: {_readTags.Count}");
-
-                            // Eşik kontrolü
-                            if (_readTags.Count == _thresholdValue)
-                            {
-                                await _hubContext.Clients.All.SendAsync("ThresholdReached", _readTags.Count);
-                                ThresholdReached?.Invoke(this, _readTags.Count);
-                                
-                                // External API'ye istek gönder
-                                await SendThresholdNotificationAsync();
-                            }
                         }
                     }
 
@@ -293,40 +262,7 @@ namespace RfidBackend.Services
                 // Event'i tetikle
                 TagRead?.Invoke(this, newTag);
 
-                // Eşik kontrolü
-                if (_readTags.Count == _thresholdValue)
-                {
-                    await _hubContext.Clients.All.SendAsync("ThresholdReached", _readTags.Count);
-                    ThresholdReached?.Invoke(this, _readTags.Count);
-                    
-                    // External API'ye istek gönder
-                    await SendThresholdNotificationAsync();
-                }
-
                 _logger.LogInformation($"Simulated tag read: {newTag.TagId}, Total: {_readTags.Count}");
-            }
-        }
-
-        private async Task SendThresholdNotificationAsync()
-        {
-            try
-            {
-                using var httpClient = _httpClientFactory.CreateClient();
-                var response = await httpClient.GetAsync("http://81.213.79.71/barfas/rfid/sayac.php?=ok");
-                
-                if (response.IsSuccessStatusCode)
-                {
-                    _logger.LogInformation("Threshold notification sent successfully");
-                    await _hubContext.Clients.All.SendAsync("NotificationSent", "Yeterli Sayıda Etiket Okunmuştur");
-                }
-                else
-                {
-                    _logger.LogWarning($"Failed to send threshold notification. Status: {response.StatusCode}");
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error sending threshold notification");
             }
         }
 
